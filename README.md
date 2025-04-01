@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This project involves designing a MySQL database system  to streamline the financial management of a cooperative society. It facilitates accurate and efficient monitoring of key financial metrics, including savings, loans, transactions, income, and dividend allocations, while leveraging triggers and views to uphold data integrity. Additionally, the system also enables the export of financial data, supporting the creation of individualized member statements and comprehensive administrative reports that offer actionable insights into the society's financial performance.
+This project involves designing a MySQL database system  to streamline the financial management of a cooperative society. It facilitates accurate and efficient monitoring of key financial metrics, including savings, loans, transactions, income, and dividend allocations, while leveraging triggers and views to uphold data integrity. Additionally, this project includes exporting and extracting financial data from the database to generate personalized member statements and detailed administrative reports, providing valuable insights into the cooperative society's financial performance.
 
 ## 2. Scope and Features
 
