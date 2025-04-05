@@ -24,7 +24,7 @@ This project involves designing a MySQL database system  to modernize the financ
 
   - Loan Issued → Updates the `loans` table and automatically logs 6% interest in the income table.
 
-  - Loan Repayment → Updates the loans table and automatically reduces loan balance.
+  - Loan Repayment → Updates the `loans` table and automatically reduces loan balance.
 
 **2.3 Views for Dividend Tracking**
 
@@ -34,11 +34,11 @@ This project involves designing a MySQL database system  to modernize the financ
 
 **3.1 Publishing Member Statements**
 
-The database was exported to generate member-specific account statements, allowing each member to review their yearly transactions.[View Report Here](https://5a90nh-dunni-olu0ajayi.shinyapps.io/FinReport/).
+The database was deployed to a cloud server, enabling members access to their personalized account statements and review their annual transactions. [View Report Here](https://5a90nh-dunni-olu0ajayi.shinyapps.io/statement/).
 
 **3.2 Administrative Report**
 
-A comprehensive report was also generated to provide insights into the cooperative society's overall financial performance.
+A comprehensive report was also generated to provide insights into the cooperative society's financial performance.
 
 ## 4. Database Schema
 The key tables in the database include:
