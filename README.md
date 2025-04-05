@@ -59,4 +59,4 @@ The key tables in the database include:
 
 - `database/` – Contains the full MySQL database schema, including all tables, sample data, triggers, and views with the dividend model implemented as part of the view definitions.
 - `reports/` – Stores the Quarto document for generating account statements.
-- `docs/` –  SQL queries for analysis extracting data for analysis.
+- `docs/` –  SQL queries for extracting data for analysis.
