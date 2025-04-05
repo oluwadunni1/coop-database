@@ -1,0 +1,463 @@
+---
+title: ""
+subtitle: ""
+description: ""
+format: 
+  html:
+    css: custom.css
+    theme: cosmo
+    toc: true
+    toc-title: "Contents"
+    toc-location: left
+    toc-depth: 2
+    code-fold: true
+    self-contained: true
+    page-layout: custom
+    fig-width: 8
+    fig-height: 4
+    fig-format: svg
+    fig-dpi: 300
+    embed-resources: true
+server: shiny
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+library(shiny)
+library(DT)
+library(dplyr)
+library(htmltools)
+library(RMySQL)
+library(dbplyr)
+library(dotenv)
+library(rsconnect)
+# Load environment variables from .env file
+load_dot_env()
+
+# Database connection using environment variables
+db_connection <- function() {
+  dbConnect(
+    MySQL(),
+    host = Sys.getenv("DB_HOST"),
+    user = Sys.getenv("DB_USER"),
+    password = Sys.getenv("DB_PASSWORD"),
+    dbname = Sys.getenv("DB_NAME")
+  )
+}
+
+# Fetch members data
+fetch_members <- function() {
+  con <- db_connection()
+  members_data <- dbGetQuery(con, "SELECT member_id FROM members")
+  dbDisconnect(con)
+  return(members_data)
+}
+
+# Fetch transactions for a specific member
+fetch_transactions <- function(member_id) {
+  con <- db_connection()
+  
+  # Modified query to filter transactions from 2024 only
+  query <- paste0("SELECT transaction_id, transaction_date, transaction_type, amount 
+                  FROM transactions 
+                  WHERE member_id = '", member_id, "' 
+                  AND YEAR(transaction_date) = 2024 
+                  ORDER BY transaction_date DESC")
+  
+  transactions_data <- dbGetQuery(con, query)
+  dbDisconnect(con)
+  
+  # Format data while preserving the original date for sorting
+  if (nrow(transactions_data) > 0) {
+    # Keep original transaction_date for sorting
+    transactions_data$original_date <- transactions_data$transaction_date
+    
+    # Format for display
+    transactions_data$transaction_date <- format(as.Date(transactions_data$transaction_date), "%d-%b-%Y")
+    transactions_data$amount <- paste0("₦", format(transactions_data$amount, big.mark=",", scientific=FALSE, digits=2))
+  }
+  
+  return(transactions_data)
+}
+
+# Get transaction types for filter
+get_transaction_types <- function() {
+  con <- db_connection()
+  query <- "SELECT DISTINCT transaction_type FROM transactions ORDER BY transaction_type"
+  types <- dbGetQuery(con, query)
+  dbDisconnect(con)
+  return(c("All", types$transaction_type))
+}
+
+# Initialize member data
+members <- fetch_members()
+
+# Use member data from database, or fall back to sample if needed
+if (nrow(members) == 0) {
+  members <- data.frame(
+    member_id = c("#1482", "#1023", "#2075"),
+    stringsAsFactors = FALSE
+  )
+}
+
+# Default member selection
+default_member <- if(nrow(members) > 0) members$member_id[1] else "#1482"
+
+# Transaction types for filter
+transaction_types <- get_transaction_types()
+```
+
+<style>
+@media print {
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+  
+  .logo {
+    max-width: 100px !important;
+  }
+  
+  .dataTables_wrapper .dataTables_length, 
+  .dataTables_wrapper .dataTables_filter,
+  .dataTables_wrapper .dataTables_paginate {
+    display: none !important;
+  }
+  
+  .footer-section {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+  }
+}
+
+/* Styling for DataTables to match summary table */
+.dataTables_wrapper .dataTable.summary-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.dataTables_wrapper .dataTable.summary-table thead th {
+  background-color: inherit; 
+  color: inherit;
+  border-bottom: 2px solid #ddd;
+}
+
+.dataTables_wrapper .dataTable.summary-table tbody td {
+  border-top: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* Remove default DataTables styling */
+.dataTables_wrapper .dataTable.summary-table.no-footer {
+  border-bottom: none;
+}
+
+/* Match hover effects */
+.dataTables_wrapper .dataTable.summary-table.hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.075); /* Bootstrap's default hover color */
+}
+
+/* Make the table background match */
+.dataTables_wrapper .dataTable.summary-table {
+  background-color: transparent;
+}
+</style>
+
+```{r reactive-data, context="server"}
+# Reactive values for member data
+member_data <- reactive({
+  member_id <- input$member_id
+  
+  # Create database connection
+  con <- db_connection()
+  
+  # 1. Fetch account summary data from savings table
+  savings_query <- paste0("SELECT opening_balance, balance, percent_change 
+                        FROM savings 
+                        WHERE member_id = '", member_id, "'")
+  
+  savings_data <- tryCatch({
+    dbGetQuery(con, savings_query)
+  }, error = function(e) {
+    # Fallback if query fails
+    data.frame(
+      opening_balance = 0,
+      balance = 0,
+      percent_change = 0
+    )
+  })
+  
+  # 2. Fetch dividend data from dividend table with the new column name
+  dividend_query <- paste0("SELECT ROUND(dividend_amount, 2) as dividend_amount 
+                          FROM dividend 
+                          WHERE member_id = '", member_id, "'")
+  
+  dividend_data <- tryCatch({
+    dbGetQuery(con, dividend_query)
+  }, error = function(e) {
+    # Fallback if query fails
+    data.frame(dividend_amount = 0)
+  })
+  
+  # 3. Check for loan balance - member might have multiple loan entries, but only one can be > 0
+  loan_query <- paste0("SELECT IFNULL(MAX(loan_balance), 0) as loan_balance 
+                      FROM loans 
+                      WHERE member_id = '", member_id, "'")
+  
+  loan_data <- tryCatch({
+    dbGetQuery(con, loan_query)
+  }, error = function(e) {
+    # Fallback if query fails
+    data.frame(loan_balance = 0)
+  })
+  
+  # Close database connection
+  dbDisconnect(con)
+  
+  # Calculate net change
+  net_change <- if(nrow(savings_data) > 0) {
+    savings_data$balance - savings_data$opening_balance
+  } else {
+    0
+  }
+  
+  # Get percent change
+  percent_change <- if(nrow(savings_data) > 0) {
+    savings_data$percent_change
+  } else {
+    0
+  }
+  
+  # Get dividend value
+  dividend_value <- if(nrow(dividend_data) > 0) {
+    dividend_data$dividend_amount
+  } else {
+    0
+  }
+  
+  # Get loan balance
+  loan_balance <- if(nrow(loan_data) > 0) {
+    loan_data$loan_balance
+  } else {
+    0
+  }
+  
+  # Format closing balance with colored percentage indicator
+  formatted_closing_balance <- if(nrow(savings_data) > 0) {
+    closing_balance_value <- paste0("₦", format(savings_data$balance, big.mark=",", scientific=FALSE, digits=2))
+    percent_sign <- ifelse(percent_change >= 0, "+", "-")
+    
+    # HTML formatting for colored percentage
+    percent_color <- ifelse(percent_change >= 0, "#27ae60", "#e74c3c")
+    percentage_html <- paste0(" <span style='color:", percent_color, ";'>(", 
+                             percent_sign, abs(percent_change), "%)</span>")
+    
+    # Combine balance value with formatted percentage
+    paste0(closing_balance_value, percentage_html)
+  } else {
+    "₦0.00"
+  }
+  
+  # Return the formatted data
+  list(
+    id = member_id,
+    opening_balance = paste0("₦", format(if(nrow(savings_data) > 0) savings_data$opening_balance else 0, 
+                             big.mark=",", scientific=FALSE, digits=2)),
+    closing_balance = formatted_closing_balance,
+    net_change = paste0(ifelse(net_change >= 0, "+", ""), "₦", 
+                        format(abs(net_change), big.mark=",", scientific=FALSE, digits=2)),
+    dividend_earned = paste0("₦", format(dividend_value, big.mark=",", scientific=FALSE, digits=2)),
+    loan_balance = paste0("₦", format(loan_balance, big.mark=",", scientific=FALSE, digits=2))
+  )
+})
+
+# Reactive transactions data
+filtered_transactions <- reactive({
+  # Get transactions for selected member
+  all_transactions <- fetch_transactions(input$member_id)
+  
+  # Apply filter if not "All"
+  if (input$tx_type_filter != "All" && nrow(all_transactions) > 0) {
+    all_transactions <- all_transactions %>%
+      filter(transaction_type == input$tx_type_filter)
+  }
+  
+  all_transactions
+})
+
+# Update member ID display when selection changes
+output$selected_member_id <- renderText({
+  input$member_id
+})
+
+# Render account summary
+output$account_summary <- renderUI({
+  current <- member_data()
+  
+  tags$table(
+    class = "table table-striped summary-table",
+    tags$tr(
+      tags$td(class = "label-cell", "Opening Balance"),
+      tags$td(class = "value-cell", tags$strong(current$opening_balance))
+    ),
+    tags$tr(
+      tags$td(class = "label-cell", "Closing Balance"),
+      tags$td(class = "value-cell", tags$strong(HTML(current$closing_balance)))
+    ),
+    tags$tr(
+      tags$td(class = "label-cell", "Net Change"),
+      tags$td(class = "value-cell", tags$strong(current$net_change))
+    ),
+    tags$tr(
+      tags$td(class = "label-cell", "Dividend Earned"),
+      tags$td(class = "value-cell", tags$strong(current$dividend_earned))
+    ),
+    tags$tr(
+      tags$td(class = "label-cell", "Loan Balance"),
+      tags$td(class = "value-cell", tags$strong(current$loan_balance))
+    )
+  )
+})
+
+# Render transactions table
+output$transactions_table <- renderDT({
+  txn_data <- filtered_transactions()
+  
+  if (nrow(txn_data) == 0) {
+    # Return empty table with correct columns
+    empty_df <- data.frame(
+      transaction_id = integer(0),
+      transaction_date = character(0),
+      transaction_type = character(0),
+      amount = character(0)
+    )
+    
+    DT::datatable(
+      empty_df,
+      colnames = c("ID", "Date", "Transaction Type", "Amount"),
+      options = list(
+        pageLength = 10,
+        lengthMenu = c(10),
+        dom = 'tip',  # Only show table, info and pagination
+        ordering = TRUE,
+        autoWidth = TRUE
+      ),
+      class = 'table table-striped'
+    )
+  } else {
+    # Create a datatable with hidden original_date column for sorting
+    DT::datatable(
+      txn_data,
+      colnames = c("ID", "Date", "Transaction Type", "Amount", "Original Date"),
+      options = list(
+        pageLength = 10,
+        lengthMenu = c(10),
+        dom = 'tip',  # Only show table, info and pagination
+        ordering = TRUE,
+        autoWidth = TRUE,
+        columnDefs = list(
+          list(className = 'dt-center', targets = c(0, 1, 2)),
+          list(className = 'dt-right', targets = 3),
+          # Hide the original_date column used for sorting
+          list(visible = FALSE, targets = 4),
+          # Use the hidden original_date column for sorting the Date column
+          list(orderData = 4, targets = 1)
+        ),
+        order = list(list(4, 'desc'))  # Default sort by date (column 4 - original_date) descending
+      ),
+      class = 'table table-striped',
+      rownames = FALSE,
+      escape = FALSE
+    ) %>% 
+    formatStyle(
+      'amount',
+      color = styleInterval(c(0), c('#e74c3c', '#27ae60')),
+      valueColumns = 'amount'
+    )
+  }
+})
+
+```
+
+<!-- Replace your existing layout structure with this updated version -->
+
+::: {.page-container}
+::: {.header-section}
+::: {.d-flex .justify-content-between .align-items-center .flex-wrap}
+::: {.logo-container .mb-2 .mb-md-0}
+<div class="logo">IJBW</div>
+:::
+
+::: {.title-container .text-center .mb-2 .mb-md-0}
+# Annual Financial Statement
+### Member Statement for 2024
+:::
+
+::: {.info-container .text-md-right .text-center .mb-2 .mb-md-0}
+**Statement Period:** Jan - Dec, 2024  
+**Prepared by:** Oluwadunni
+:::
+:::
+:::
+
+::: {.row}
+::: {.col-12 .col-md-4 .info-section .p-3}
+::: {.summary-container .mb-4}
+<h3 class="section-title">Account Summary</h3>
+```{r summary-section, echo=FALSE}
+uiOutput("account_summary")
+```
+:::
+
+::: {.member-selection}
+<h3 class="section-title">Select Member</h3>
+```{r member-selector, echo=FALSE}
+selectInput("member_id", "Member ID:", 
+            choices = members$member_id,
+            selected = default_member,
+            width = "100%"
+)
+```
+:::
+:::
+
+::: {.col-12 .col-md-8 .data-section .p-3}
+<h3 class="section-title">Transaction History</h3>
+
+<div class="transaction-filter mb-3">
+```{r transaction-filter, echo=FALSE}
+selectInput("tx_type_filter", "Filter by Transaction Type:", 
+            choices = transaction_types,
+            selected = "All",
+            width = "100%")
+```
+</div>
+
+<div class="table-responsive">
+```{r transaction-table, echo=FALSE}
+DTOutput("transactions_table")
+```
+</div>
+:::
+:::
+
+::: {.footer-section .mt-4}
+::: {.d-flex .justify-content-between .align-items-center .flex-wrap}
+::: {.footer-logo .mb-2 .mb-md-0}
+IJBW Financial Cooperative
+:::
+
+::: {.footer-info .mb-2 .mb-md-0}
+© 2024 IJBW Financial Cooperative. All rights reserved.
+:::
+
+::: {.footer-disclaimer .mb-2 .mb-md-0}
+This statement is confidential and intended for the named member only.
+:::
+:::
+:::
+:::

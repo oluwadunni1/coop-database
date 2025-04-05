@@ -1,0 +1,413 @@
+---
+title: "IJBW Cooporative Society"
+subtitle: "Annual Financial Report | 2024"
+author: "Oluwadunni"
+date: 2025-01-03
+format:
+  html:
+    toc: true
+    theme: cosmo
+editor: visual
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(formattable)
+library(gt)
+library(scales)
+
+contribution_trend <- read.csv("contribution_trend.csv")
+loan_distribution <-  read.csv("loans_distribution.csv")
+histogram <-   read.csv("Histogram.csv")
+loan_summary <-  read.csv("loan_summary.csv")
+loan_repayment <-  read.csv("loan_repayment.csv")
+```
+
+# Executive Summary
+
+The 2024 fiscal year saw notable growth across most key financial metrics compared to the previous year. Annual member contributions reached **₦4.85 million**, reflecting an 11.4% year-over-year increase.  Loan disbursements surged by 23.1% totaling **₦27.81 million**, while loan repayments declined by 14.4% to **₦22.93 million**. Income earned from loan interest grew proportionally with disbursements, increasing by 23.1% to **₦1.67 million** based on a fixed 6% interest rate structure. Notably, savings withdrawals decreased significantly by 32.7% to **₦1.15 million** reinforcing  members' behavior toward long-term savings accumulation.
+
+This report presents a comprehensive analysis of these financial metrics, identifying trends, patterns, and opportunities for strategic improvement in the upcoming fiscal year.
+
+```{r, echo=FALSE, message=FALSE}
+
+# Create the data frame with added Withdrawals row and renamed Income
+financial_performance <- data.frame(
+  Metric = c("Member Contributions", "Loan Disbursements", "Loan Repayments", "Income", "Withdrawals"),
+  Year2023 = c(4.35, 22.59, 26.79, 1.36, 1.71),
+  Year2024 = c(4.85, 27.81, 22.93, 1.67, 1.15),
+  Change = c(11.4, 23.1, -14.4, 23.1, -32.7) 
+)
+
+# Format change values into a string column for display
+financial_performance <- financial_performance |>
+  mutate(Change_fmt = ifelse(Change >= 0, paste0("+", round(Change, 1), "%"), paste0(round(Change, 1), "%")))
+
+# Create the gt table with adjusted width and styling
+financial_performance |>
+  gt() |>
+  tab_header(
+    title = "",
+    subtitle = md("*Financial Performance Summary*")
+  ) |>
+  fmt_number(
+    columns = c(Year2023, Year2024),
+    decimals = 2,
+    pattern = "₦{x}M"
+  ) |>
+  cols_label(
+    Metric = "Metric",
+    Year2023 = "2023",
+    Year2024 = "2024",
+    Change_fmt = "Change (%)"
+  ) |>
+  cols_width(
+    Metric ~ px(180),      
+    Year2023 ~ px(140),     
+    Year2024 ~ px(140),    
+    Change_fmt ~ px(140)  
+  ) |>
+  cols_align(
+    align = "left",
+    columns = Metric
+  ) |>
+  # Center-align year values
+  cols_align(
+    align = "center",
+    columns = c(Year2023, Year2024)
+  ) |>
+  # Right-align the change percentage column
+  cols_align(
+    align = "center",
+    columns = Change_fmt
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#f8f9fa"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("top", "bottom"),
+      color = "#dee2e6",
+      weight = px(1)
+    ),
+    locations = cells_body()
+  ) |>
+  tab_options(
+    table.width = px(700),
+    table.border.top.style = "hidden",
+    table.border.bottom.style = "hidden",
+    column_labels.border.bottom.width = px(2),
+    column_labels.border.bottom.color = "#495057",
+    row_group.border.top.width = px(2),
+    row_group.border.top.color = "#495057",
+    column_labels.padding = px(10),
+    data_row.padding = px(8)
+  ) |>
+  # Apply text color formatting to Change_fmt column
+  tab_style(
+    style = cell_text(color = "#e84a5f"), 
+    locations = cells_body(
+      columns = Change_fmt,
+      rows = Change < 0
+    )
+  ) |>
+  tab_style(
+    style = cell_text(color = "#239604"), 
+    locations = cells_body(
+      columns = Change_fmt,
+      rows = Change >= 0
+    )
+  ) |>
+  opt_row_striping() |>
+  # Hide the original Change column so only formatted one is shown
+  cols_hide(columns = Change)
+```
+
+
+# Contributions Analysis
+
+The line chart below compares monthly contributions for 2023 and 2024, highlighting trends and differences in saving behavior across both years.
+
+```{r fig.width=10, fig.height=6, echo=FALSE}
+# Convert Month to factor with correct order
+month_levels <- c("January", "February", "March", "April", "May", "June", 
+                  "July", "August", "September", "October", "November", "December")
+month_abbr <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+contribution_trend$Month <- factor(contribution_trend$Month, levels = month_levels)
+
+# Create a date variable for proper x-axis ordering
+contribution_trend <- contribution_trend %>%
+  mutate(date = as.Date(paste("01", Month, Year), format = "%d %B %Y"))
+
+# Create the plot
+ggplot(contribution_trend, aes(x = Month, y = total_savri, group = factor(Year), color = factor(Year))) +
+  geom_line(aes(linetype = factor(Year)), linewidth = 1.5) +  
+  geom_point(size = 4) +  
+  scale_color_manual(values = c("2023" = "#AAAAAA", "2024" = "#2c3e50"), name = NULL) +  # Removed legend title
+  scale_linetype_manual(values = c("2023" = "dashed", "2024" = "solid"), name = NULL) +  # Removed legend title
+  theme_minimal(base_size = 15) +
+  labs(
+    title = "Comparing Contributions 2023 v 2024",
+    y = "Total Contributions (₦)",
+    x = NULL
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "plain", hjust = 0, margin = margin(b = 5)),
+    plot.title.position = "plot",
+    legend.position = "right",
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.margin = margin(0, 0, 0, 0),  # Reduced margin around legend
+    legend.spacing.y = unit(0.1, "cm"),  # Reduced spacing between legend items
+    legend.key.height = unit(0.8, "cm"),  # Smaller legend keys
+    legend.key.width = unit(1.2, "cm"),   # Narrower legend keys
+    legend.text = element_text(size = 12),
+    axis.title.y = element_text(size = 14, margin = margin(r = 10)),
+    axis.text.y = element_text(size = 12),
+    axis.text.x = element_text(size = 12, margin = margin(t = 5)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "#DDDDDD"),
+    plot.margin = margin(10, 10, 20, 30),  # Reduced right margin
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  ) +
+  scale_y_continuous(
+    labels = function(x) paste0("₦", scales::comma_format(scale = 1/1000, suffix = "k")(x)),
+    breaks = seq(200000, max(contribution_trend$total_savri) + 50000, by = 50000),
+    limits = c(200000, max(contribution_trend$total_savri) + 50000),
+    expand = expansion(mult = c(0.02, 0.04))
+  ) +
+  scale_x_discrete(labels = month_abbr)
+```
+
+While 2023 had a higher peak in January, savings in 2024 quickly caught up and even surpassed 2023 by March. However, in both years, contributions started to decline from April onwards, with 2024 maintaining a slightly stronger trend for most of the year. There was a small rebound in November, but savings dropped sharply in December. This dip towards the end of the year could be because most members had already met their annual savings goals. The overall 11.4% increase in contributions reflects growing member engagement and confidence in the cooperative's financial management.
+
+
+# Loan Portfolio Analysis
+
+Access to credit is a core objective of this cooperative society, aimed at supporting members’ financial needs. This section examines loan disbursement patterns over the year as well as distribution of loan amounts. 
+
+## Disbursement Trends 
+
+ By comparing loan amounts disbursed across months, we can better understand when members seek financial support the most and how lending activities fluctuate throughout the year.
+
+```{r fig.width=11, fig.height=6, echo=FALSE}
+# Convert Date column to Date format
+loan_distribution$Date <- as.Date(loan_distribution$Date, format="%m/%d/%Y")
+
+# Extract the year and month for grouping
+loan_distribution$Year <- format(loan_distribution$Date, "%Y")
+loan_distribution$Month <- factor(month.abb[loan_distribution$Month.Number], 
+                                 levels = month.abb)
+
+# Create the line chart with consistent styling from the first chart
+ggplot(loan_distribution, aes(x = Month, y = Total.Loans, group = Year, color = factor(Year))) +
+  geom_line(aes(linetype = factor(Year)), linewidth = 1.5) +  
+  geom_point(size = 4) +  
+  scale_color_manual(values = c("2023" = "#AAAAAA", "2024" = "#2c3e50"), name = NULL) +  # Removed legend title
+  scale_linetype_manual(values = c("2023" = "dashed", "2024" = "solid"), name = NULL) +  # Removed legend title
+  theme_minimal(base_size = 15) +
+  labs(
+    title = "Loan Disbursement Trends: 2023 vs 2024",
+    y = "Total Loans (₦)",
+    x = NULL
+  ) +
+  theme(
+    plot.title = element_text(size = 16, face = "plain", hjust = 0, margin = margin(b = 5)),
+    plot.title.position = "plot",
+    legend.position = "right",  # Changed from "top" to "right"
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.margin = margin(0, 0, 0, 0),  # Reduced margin around legend
+    legend.spacing.y = unit(0.1, "cm"),  # Reduced spacing between legend items
+    legend.key.height = unit(0.8, "cm"),  # Smaller legend keys
+    legend.key.width = unit(1.2, "cm"),   # Narrower legend keys
+    legend.text = element_text(size = 12),
+    axis.title.y = element_text(size = 14, margin = margin(r = 10)),
+    axis.text.y = element_text(size = 12),
+    axis.text.x = element_text(size = 12, margin = margin(t = 5)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "#DDDDDD"),
+    plot.margin = margin(10, 10, 20, 30),  # Reduced right margin
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  ) +
+  scale_y_continuous(
+    labels = function(x) paste0("₦", scales::comma_format(scale = 1/1000000, suffix = "M")(x)),  # Changed to millions with "M"
+    expand = expansion(mult = c(0.02, 0.04))
+  ) +
+  scale_x_discrete()
+```
+
+The loan disbursement chart reveals a significant shift in patterns between 2023 and 2024. While 2023 showed moderate disbursement activity concentrated in the first quarter (peaking in February around ₦3.5M), 2024 demonstrates higher volumes with multiple pronounced peaks  particularly in April (₦6M), May, September, and November (each around ₦4.5-5M). The 2024 trend displays greater volatility and considerably higher maximum amounts. Both years share common patterns including mid-year slumps (June-July) and zero-disbursement months, though these occur at different times. Overall, 2024 represents a substantial increase in lending activity with approximately double the peak disbursement amount compared to 2023, driven by larger individual loans as well as higher approval volumes.
+
+## Loan Size distribution 
+
+Understanding the distribution of loan amounts provides insights into borrowing behavior within the cooperative.
+
+This insight can help in refining loan policies and assessing members' credit needs.
+
+```{r, echo=FALSE, fig.width=10, fig.height=6.5}
+histogram$loan_amount <- as.numeric(histogram$loan_amount)
+
+# Create custom breaks based on your specified bins
+breaks <- c(0, 250000, 500000, 750000, 1000000, 1250000, 1500000)
+
+# Create labels for the x-axis
+labels <- c("0-250K", "250K-500K", "500K-750K", "750K-1M", "1M-1.25M", "1.25M-1.5M")
+
+# Create the histogram
+hist(histogram$loan_amount, 
+     breaks = breaks,
+     main = "Loan Amount Distribution",
+     xlab = "Loan Amount",
+     ylab = "Frequency",
+     col = "#2c3e50",
+     labels = TRUE,
+     xaxt = "n")  # Remove default x-axis labels
+
+# Add custom x-axis labels
+axis(1, at = breaks[-length(breaks)] + diff(breaks)/2, labels = labels)
+```
+
+The loan amount distribution indicates a strong preference among members for the maximum loan amount available, as the highest category (₦1.25M–₦1.5M) has the highest frequency (13 loans). This suggests that most members tend to secure the largest possible loan, likely to meet substantial financial needs. Smaller loan amounts (₦0–₦1M) are significantly less common, with each range containing only 3–4 loans, while the ₦1M–₦1.25M category has just one loan.
+
+## Loan Repayment
+
+While the total loan repayment transactions for the year amounted to **₦22.9M**, only about **₦8M** was specifically for loans disbursed in 2024.This indicates a significant portion of repayments applied to prior-year loans.
+
+The current year loan repayment status can be categorized as: fully repaid, partially repaid, not yet repaid(no payments at all) and overdue loans, to assess members’ commitment to loan repayment
+
+```{r, echo=FALSE}
+loan_repayment |>
+  gt() |>
+  tab_header(
+    title = "",
+    subtitle = md("*Loan Repayment Summary*")
+  ) |>
+  fmt_number(
+    columns = c(Total_Principal, Amount_Repaid, Amount_Outstanding),
+    decimals = 2,
+    pattern = "₦{x}"
+  ) |>
+  fmt_number(
+    columns = Repayment_Rate,
+    decimals = 2,
+    pattern = "{x}%"
+  ) |>
+  cols_label(
+    status = "Status",
+    Number_of_Loans = "Number of Loans",
+    Total_Principal = "Total Principal (₦)",
+    Amount_Repaid = "Amount Repaid (₦)",
+    Amount_Outstanding = "Amount Outstanding (₦)",
+    Repayment_Rate = "Repayment Rate (%)"
+  ) |>
+  cols_width(
+    status ~ px(180),
+    Number_of_Loans ~ px(140),
+    Total_Principal ~ px(160),
+    Amount_Repaid ~ px(160),
+    Amount_Outstanding ~ px(160),
+    Repayment_Rate ~ px(140)
+  ) |>
+  cols_align(
+    align = "left",
+    columns = status
+  ) |>
+  cols_align(
+    align = "center",
+    columns = c(Number_of_Loans, Total_Principal, Amount_Repaid, Amount_Outstanding, Repayment_Rate)
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#f8f9fa"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("top", "bottom"),
+      color = "#dee2e6",
+      weight = px(1)
+    ),
+    locations = cells_body()
+  ) |>
+  tab_options(
+    table.width = px(750),
+    table.border.top.style = "hidden",
+    table.border.bottom.style = "hidden",
+    column_labels.border.bottom.width = px(2),
+    column_labels.border.bottom.color = "#495057",
+    row_group.border.top.width = px(2),
+    row_group.border.top.color = "#495057",
+    column_labels.padding = px(10),
+    data_row.padding = px(8)
+  ) |>
+  opt_row_striping()
+
+```
+
+This distribution pattern aligns with normal repayment progression. Loans categorized as "Not Yet Repaid" were predominantly issued in the latter half of 2024, with repayment schedules extending into 2025. Meanwhile, "Partially Repaid" loans generally originated between March and October 2024, with repayments proceeding according to schedule.
+While the overall repayment rate of 30.67% might appear concerning at first glance, this figure reflects the cooperative's loan cycle timing rather than delinquency issues. The complete absence of overdue loans underscores members' responsible financial management despite the substantial outstanding balance.
+Notably, the majority of 2024's loan repayment transactions (approximately ₦14.9 million of the ₦22.9 million total) came from prior-year loans. This cycle continues as approximately ₦19 million in unpaid loans will carry forward into the next fiscal year, compared to the ₦14 million brought into 2024. This progressive pattern demonstrates the cooperative's expanding loan portfolio while maintaining strong repayment discipline among the membership.
+
+# Dividend Distribution 
+
+This section outlines how each member's dividend is calculated based on their savings balance and loan utilization during the fiscal year. This transparent approach ensures all members understand how their financial participation affects their dividend returns.
+The total amount allocated for dividends this year was **₦1.66M**, derived primarily from interest earnings on loans disbursed to members.
+At the end of each fiscal year, dividends are distributed to members based on a weighted allocation model that ensures fairness. This model distributes 60% of the total income based on savings balances and 40% based on loan engagement.
+
+## Dividend Distribution Formula
+
+Each member's dividend consists of two components:
+
+- **Savings Dividend**: 
+  $$\text{Savings Dividend} = 60\% \times \text{Total Income} \times \frac{\text{Member's Savings Balance}}{\text{Total Savings of All Members}}$$
+
+- **Loan Dividend**: 
+  $$\text{Loan Dividend} = 40\% \times \text{Total Income} \times \frac{\text{Member's loan obtained in 2024}}{\text{Total Loans Issued to All Members}}$$
+
+The total dividend for each member is calculated as:
+$$\text{Net Dividend} = \text{Savings Dividend} + \text{Loan Dividend}$$
+
+This approach equitably rewards members for both their commitment to savings and their engagement with cooperative loan services—two critical pillars of the society's financial sustainability.
+
+*Note: dividend are subject to deductions before being disbursed to members for example for penalties and other expenses incurred in running the society as a whole*
+
+# Insights and Recommendations 
+
+## Insights from 2024 Performance 
+The financial analysis reveals several noteworthy patterns that could influence strategic consideration.
+
+- Growth trajectory in member contributions demonstrates growing trust and engagement with cooperative despite the seasonal decline pattern observed in both 2023 and 2024
+
+- Significant increase in loan disbursements, coupled with the concetration of loans in the highest amount category (1.25M-1.5M) indicates strong demand for substantial financing among members 
+
+-  The absence of overdue loans reflects excellent repayment discipline within the membership, though the overall repayment rate appears low due to timing factors rather than delinquency concerns.
+
+- The substantial decrease in withdrawals coupled with increased contributions suggests members are increasingly viewing the cooperative as a long-term savings plan rather than a short-term liquidity solution.
+
+## Recommendations 
+Based on these insights, the following initiatives have been proposed for 2025:
+
+- Develop strategies and incentives to counter contribution decline such as special interest bonuses for maintaining monthly contribution streaks. Financial literacy sessions to help members understand the connection between their contribution patterns, loan utilizations and dividend earnings.
+
+
+- Explore oppurtunities to slightly diversify income sources beyond loan interest, such as small investment ventures, or partnerships with local businesses to offer even more benefits to members.
+
+- Consider implementing a tiered interest rate structure that offers slightly lower rates for smaller loans to encourage more diverse loan sizes and reduce concetration in maximum category.
+
+
+## Personal Statements
+
+To view your individual 2024 financial statement, including,contribution history, and loan details, please **[click here to access your personal statement](https://5a90nh-dunni-olu0ajayi.shinyapps.io/statement/)**.
+
+*Note: You will need to input your member id to filter for your own statement.*
