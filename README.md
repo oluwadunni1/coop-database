@@ -38,7 +38,7 @@ The database was deployed to a cloud server, enabling members access to their pe
 
 **3.2 Administrative Report**
 
-A comprehensive report was also generated to provide insights into the cooperative society's financial performance.
+A comprehensive report was also generated to provide insights into the cooperative society's financial performance. [View Report Here](https://oluwadunni1.github.io/coop-database/)
 
 ## 4. Database Schema
 The key tables in the database include:
