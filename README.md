@@ -34,11 +34,11 @@ This project involves designing a MySQL database system  to modernize the financ
 
 **3.1 Publishing Member Statements**
 
-The database was deployed to a cloud server, enabling members access to their personalized account statements and review their annual transactions. [View Report Here](https://5a90nh-dunni-olu0ajayi.shinyapps.io/statement/).
+The database was deployed to a cloud server, enabling members access to their personalized account statements and review their annual transactions. [Click to view statement](https://5a90nh-dunni-olu0ajayi.shinyapps.io/statement/).
 
 **3.2 Administrative Report**
 
-A comprehensive report was also generated to provide insights into the cooperative society's financial performance. [View Report Here](https://oluwadunni1.github.io/coop-database/)
+A comprehensive report was also generated to provide insights into the cooperative society's financial performance. [Click to view report](https://oluwadunni1.github.io/coop-database/)
 
 ## 4. Database Schema
 The key tables in the database include:
@@ -57,6 +57,8 @@ The key tables in the database include:
 
 ## 5. Files Included 
 
-- `database/` – Contains the full MySQL database schema, including all tables, sample data, triggers, and views with the dividend model implemented as part of the view definitions.
-- `reports/` – Stores the Quarto document for generating account statements.
-- `docs/` –  SQL queries for extracting data for analysis.
+- `database/` – Contains the full MySQL database schema, including all tables, sample data, triggers, and views with the dividend model implemented as part of the view definitions. Also includes the ER diagram visualizing the database structure.
+- `reports/` – Stores the Quarto documents for generating account statements and End of year report.
+- `docs/` –  rendered html report 
+- `scripts/`- SQL queries for extracting data for analysis from Database
+- `data/` - CSV files containing merged data from previous year
