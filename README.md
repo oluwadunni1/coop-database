@@ -61,4 +61,3 @@ The key tables in the database include:
 - `reports/` – Stores the Quarto documents for generating account statements and End of year report.
 - `docs/` –  rendered html report 
 - `scripts/`- SQL queries for extracting data for analysis from Database
-- `data/` - CSV files containing merged data from previous year
